@@ -1483,6 +1483,7 @@ static void *stratum_thread(void *userdata)
 
 		if (stratum.job.job_id &&
 		    (!g_work_time || strcmp(stratum.job.job_id, g_work.job_id))) {
+			printf("MAIN 0\n");
 			pthread_mutex_lock(&g_work_lock);
 			stratum_gen_work(&stratum, &g_work);
 			time(&g_work_time);
@@ -1492,19 +1493,26 @@ static void *stratum_thread(void *userdata)
 				restart_threads();
 			}
 		}
+		printf("MAIN 1\n");
 		
 		if (!stratum_socket_full(&stratum, 120)) {
 			applog(LOG_ERR, "Stratum connection timed out");
 			s = NULL;
-		} else
+		} else{
+			printf("MAIN 2\n");
 			s = stratum_recv_line(&stratum);
+			printf("MAIN 2.1\n");
+			printf("MAIN 2.2: %s\n", s);
+		}
 		if (!s) {
 			stratum_disconnect(&stratum);
 			applog(LOG_ERR, "Stratum connection interrupted");
 			continue;
 		}
-		if (!stratum_handle_method(&stratum, s))
+		if (!stratum_handle_method(&stratum, s)){
+			printf("MAIN 3\n");
 			stratum_handle_response(s);
+		}
 		free(s);
 	}
 

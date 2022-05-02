@@ -888,6 +888,7 @@ char *stratum_recv_line(struct stratum_ctx *sctx)
 	}
 
 	buflen = strlen(sctx->sockbuf);
+	printf("BUFFER: %s, with bufflen: %i\n", sctx->sockbuf, buflen);
 	tok = strtok(sctx->sockbuf, "\n");
 	if (!tok) {
 		applog(LOG_ERR, "stratum_recv_line failed to parse a newline-terminated string");
@@ -998,25 +999,40 @@ void stratum_disconnect(struct stratum_ctx *sctx)
 
 static const char *get_stratum_session_id(json_t *val)
 {
+	printf("get_stratum_session_id new: \n\n\n");
 	json_t *arr_val;
 	int i, n;
 
 	arr_val = json_array_get(val, 0);
-	if (!arr_val || !json_is_array(arr_val))
+	if (!arr_val || !json_is_array(arr_val)){
+		applog(LOG_DEBUG, "1");
 		return NULL;
+		}
 	n = json_array_size(arr_val);
+	printf("\n%i\n", n);
+//applog(LOG_DEBUG, json_object_size(val));
 	for (i = 0; i < n; i++) {
 		const char *notify;
 		json_t *arr = json_array_get(arr_val, i);
-
-		if (!arr || !json_is_array(arr))
+		printf("type of json: %i\n", json_typeof(arr));
+		printf("JSON TO STRING: %s \n", json_string_value(arr));
+		printf("is array: %i \n", json_is_array(arr));
+		printf("!arr: %i \n", !arr);
+		printf("is array: %i \n", json_is_array(arr));
+		printf("!arr: %i \n", !arr);
+		printf("IF VALUE: %i\n", (!arr) || (!json_is_array(arr)));
+		if (!arr || !json_is_array(arr)){
+			applog(LOG_DEBUG, "s2");
 			break;
+			}
 		notify = json_string_value(json_array_get(arr, 0));
+		printf("notify: %s\n", notify);
 		if (!notify)
 			continue;
 		if (!strcasecmp(notify, "mining.notify"))
 			return json_string_value(json_array_get(arr, 1));
 	}
+	applog(LOG_DEBUG, "3");
 	return NULL;
 }
 
@@ -1049,6 +1065,7 @@ start:
 	}
 
 	sret = stratum_recv_line(sctx);
+	applog(LOG_DEBUG, sret);
 	if (!sret)
 		goto out;
 
@@ -1074,7 +1091,7 @@ start:
 		}
 		goto out;
 	}
-
+	
 	sid = get_stratum_session_id(res_val);
 	if (opt_debug && !sid)
 		applog(LOG_DEBUG, "Failed to get Stratum session id");
@@ -1105,22 +1122,23 @@ start:
 	pthread_mutex_unlock(&sctx->work_lock);
 
 	if (opt_debug && sid)
-		applog(LOG_DEBUG, "Stratum session id: %s", sctx->session_id);
-
+		applog(LOG_DEBUG, "Stratum NEW session id: %s", sctx->session_id);
+	printf("ret = %i\n", ret);
 	ret = true;
-
+	printf("ret = %i\n", ret);
 out:
 	free(s);
 	if (val)
 		json_decref(val);
 
 	if (!ret) {
+		printf("WHAAAT???\n");
 		if (sret && !retry) {
 			retry = true;
 			goto start;
 		}
 	}
-
+	printf("Returned TRUE!\n");
 	return ret;
 }
 
@@ -1135,10 +1153,13 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 	sprintf(s, "{\"id\": 2, \"method\": \"mining.authorize\", \"params\": [\"%s\", \"%s\"]}",
 	        user, pass);
 
+	printf("Start to auth with data: %s\n", s);
+
 	if (!stratum_send_line(sctx, s))
 		goto out;
-
+	printf("AUTH 1\n");
 	while (1) {
+		printf("SPAM HERE!");
 		sret = stratum_recv_line(sctx);
 		if (!sret)
 			goto out;
@@ -1146,6 +1167,7 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 			break;
 		free(sret);
 	}
+	printf("AUTH 2\n");
 
 	val = JSON_LOADS(sret, &err);
 	free(sret);
@@ -1154,6 +1176,7 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 		goto out;
 	}
 
+	printf("AUTH 3\n");
 	res_val = json_object_get(val, "result");
 	err_val = json_object_get(val, "error");
 
@@ -1164,12 +1187,13 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 	}
 
 	ret = true;
+	printf("AUTH 4\n");
 
 out:
 	free(s);
 	if (val)
 		json_decref(val);
-
+	printf("AUTH 5: %i\n", ret);
 	return ret;
 }
 
